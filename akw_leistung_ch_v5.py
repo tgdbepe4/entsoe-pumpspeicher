@@ -393,6 +393,7 @@ def main():
                 datum_von = akw_wide["timestamp"].dropna().min().strftime("%d.%m.%Y")
                 datum_bis = akw_wide["timestamp"].dropna().max().strftime("%d.%m.%Y")
                 chart.title = f"AKW Schweiz ({datum_von} – {datum_bis}): Nuklearproduktion (MW)"
+                chart.style = 10              # Excel-Stil 10: sauber, weisser Hintergrund, dezente Gitternetzlinien
                 chart.y_axis.title = "MW"
                 chart.y_axis.scaling.min = 0
                 chart.y_axis.numFmt = '#,##0'
@@ -423,12 +424,23 @@ def main():
                 chart.legend.position = "b"
 
                 # Serien in gewuenschter Reihenfolge: zuerst Gesamtsumme, dann Einzelbloecke
-                for col_name in ["Total_Nuklear_A75_MW", "Beznau 1", "Beznau 2",
-                                  "Leibstadt", "Goesgen_errechnet_MW"]:
+                series_config = [
+                    ("Total_Nuklear_A75_MW", "2E4D7B", 28000),   # dunkelblau, 2.2pt
+                    ("Beznau 1",             "C0392B", 16000),   # rot, 1.3pt
+                    ("Beznau 2",             "E67E22", 16000),   # orange, 1.3pt
+                    ("Leibstadt",            "8E44AD", 16000),   # lila, 1.3pt
+                    ("Goesgen_errechnet_MW", "27AE60", 16000),   # gruen, 1.3pt
+                ]
+                for col_name, color, line_w in series_config:
                     if col_name in col_indices:
                         idx = col_indices[col_name]
                         data = Reference(ws, min_col=idx, min_row=1, max_row=n_rows + 1)
                         chart.add_data(data, titles_from_data=True)
+                        # Linienstil setzen
+                        s = chart.series[-1]
+                        s.graphicalProperties.line.solidFill = color
+                        s.graphicalProperties.line.width = line_w
+                        s.smooth = False
 
                 # Zeitachse (Spalte A)
                 cats = Reference(ws, min_col=1, min_row=2, max_row=n_rows + 1)
