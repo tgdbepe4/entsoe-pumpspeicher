@@ -60,6 +60,7 @@ import pandas as pd
 from entsoe import EntsoeRawClient
 from entsoe.exceptions import NoMatchingDataError
 from boxwhisker_injector import inject_box_whisker_chart
+from openpyxl.chart import LineChart, Reference
 
 PSR_NUCLEAR = "B14"
 PSR_PUMPED_STORAGE = "B10"
@@ -378,8 +379,41 @@ def main():
             (akw_wide if not akw_wide.empty
              else pd.DataFrame({"Hinweis": ["Keine AKW-Daten erhalten - mit --raw pruefen"]})
              ).to_excel(writer, sheet_name="AKW", index=False)
+
             if not akw_wide.empty:
-                writer.sheets["AKW"].column_dimensions["A"].width = 20
+                ws = writer.sheets["AKW"]
+                ws.column_dimensions["A"].width = 20
+                n_rows = len(akw_wide)
+                col_indices = {col: i + 1 for i, col in enumerate(akw_wide.columns)}
+
+                # Liniendiagramm: Total_Nuklear_A75_MW als Hauptlinie (vollstaendig),
+                # plus Einzelbloecke. NaN-Werte erscheinen als Luecken in der Linie –
+                # bewusst so, da die Luecken echte Datenfehler widerspiegeln.
+                chart = LineChart()
+                datum_von = akw_wide["timestamp"].dropna().min().strftime("%d.%m.%Y")
+                datum_bis = akw_wide["timestamp"].dropna().max().strftime("%d.%m.%Y")
+                chart.title = f"AKW Schweiz ({datum_von} – {datum_bis}): Nuklearproduktion (MW)"
+                chart.y_axis.title = "MW"
+                chart.width = 28
+                chart.height = 14
+
+                # Serien in gewuenschter Reihenfolge: zuerst Gesamtsumme, dann Einzelbloecke
+                for col_name in ["Total_Nuklear_A75_MW", "Beznau 1", "Beznau 2",
+                                  "Leibstadt", "Goesgen_errechnet_MW"]:
+                    if col_name in col_indices:
+                        idx = col_indices[col_name]
+                        data = Reference(ws, min_col=idx, min_row=1, max_row=n_rows + 1)
+                        chart.add_data(data, titles_from_data=True)
+
+                # Zeitachse (Spalte A)
+                cats = Reference(ws, min_col=1, min_row=2, max_row=n_rows + 1)
+                chart.set_categories(cats)
+                chart.x_axis.tickLblSkip = max(1, n_rows // 20)
+                chart.x_axis.number_format = "dd.MM HH:mm"
+
+                # Diagramm rechts neben den Datenspalten platzieren (ab Spalte J)
+                chart.anchor = "J2"
+                ws.add_chart(chart)
 
             (pumped_wide if not pumped_wide.empty
              else pd.DataFrame({"Hinweis": ["Keine Pumpspeicher-Daten erhalten - mit --raw pruefen"]})
@@ -387,29 +421,7 @@ def main():
             if not pumped_wide.empty:
                 writer.sheets["Pumpspeicher"].column_dimensions["A"].width = 20
 
-        # Box-Whisker-Diagramme nach dem Speichern einfuegen.
-        # Spaltenbuchstaben im AKW-Sheet:
-        # A=timestamp, B=Beznau 1, C=Beznau 2, D=Goesgen direkt,
-        # E=Leibstadt, F=Total_Nuklear_A75_MW, G=Goesgen_errechnet_MW, H=Total_MW
-        # Chart: H (Total_MW) vs G (Goesgen_errechnet_MW), Kategorien A (timestamp)
-        if not akw_wide.empty:
-            col_map = {col: chr(ord("A") + i) for i, col in enumerate(akw_wide.columns)}
-            if "Total_MW" in col_map and "Goesgen_errechnet_MW" in col_map:
-                datum_von = akw_wide["timestamp"].dropna().min().strftime("%d.%m.%Y")
-                datum_bis = akw_wide["timestamp"].dropna().max().strftime("%d.%m.%Y")
-                inject_box_whisker_chart(
-                    args.out,
-                    sheet_name="AKW",
-                    n_data_rows=len(akw_wide),
-                    chart_title=f"AKW Schweiz ({datum_von} – {datum_bis}): Gesamtleistung vs. Gösgen errechnet (MW)",
-                    series1_name="Total_MW",
-                    series2_name="Goesgen_errechnet_MW",
-                    sheet_index=1,
-                    col_cat=col_map["timestamp"],
-                    col1=col_map["Total_MW"],
-                    col2=col_map["Goesgen_errechnet_MW"],
-                )
-
+        # Pumpspeicher: Box-Whisker-Diagramm via Injektor (sheet_index=2)
         if not pumped_wide.empty:
             datum_von = pumped_wide["timestamp"].min().strftime("%d.%m.%Y")
             datum_bis = pumped_wide["timestamp"].max().strftime("%d.%m.%Y")
