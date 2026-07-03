@@ -47,6 +47,8 @@ mit --raw die Rohantwort einer einzelnen Abfrage ansehen.
 """
 
 import os
+from dotenv import load_dotenv
+load_dotenv()  # liest .env im aktuellen Verzeichnis
 import re
 import sys
 import time
