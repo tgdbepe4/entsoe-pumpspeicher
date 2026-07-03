@@ -6,15 +6,10 @@ venv/
 .venv/
 *.egg-info/
 
-# WICHTIG: Skripte enthalten den ENTSO-E API-Token hartcodiert.
-# Vor dem Einchecken Token aus ENTSOE_TOKEN_HARDCODED entfernen
-# oder Dateien hier auskommentieren:
-# akw_leistung_ch_v5.py
-# ch_pumpspeicher_v4.py
-# at_pumpspeicher_v4.py
-# de_pumpspeicher_v4.py
+# ENTSO-E Token – NIEMALS ins Repo einchecken
+.env
 
-# Excel-Outputs (können sehr gross werden, gehören nicht ins Repo)
+# Excel-Outputs
 *.xlsx
 
 # macOS
