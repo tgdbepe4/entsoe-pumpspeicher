@@ -234,13 +234,30 @@ def _drawing_xml() -> str:
 
 def inject_box_whisker_chart(xlsx_path: str, sheet_name: str, n_data_rows: int,
                               chart_title: str, series1_name: str = "Turbiniert_MW",
-                              series2_name: str = "Hochgepumpt_MW") -> None:
+                              series2_name: str = "Hochgepumpt_MW",
+                              sheet_index: int = 1) -> None:
     """Postprocessing-Schritt: oeffnet die bereits gespeicherte xlsx-Datei
     und fuegt das Box-Whisker-Diagramm ein. n_data_rows = Anzahl
     Datenzeilen OHNE Headerzeile (also len(df)). Geht von Spalten
-    A=timestamp, B=series1, C=series2 aus, Header in Zeile 1."""
-    last_row = n_data_rows + 1  # Headerzeile mitgezaehlt
+    A=timestamp, B=series1, C=series2 aus, Header in Zeile 1.
+
+    sheet_index: 1-basierter Index des Ziel-Sheets (sheet1.xml = 1,
+    sheet2.xml = 2, ...). Wichtig wenn mehrere Charts in dieselbe Datei
+    eingefuegt werden - jeder Aufruf muss einen anderen Index verwenden,
+    sonst ueberschreiben sie sich gegenseitig."""
+    last_row = n_data_rows + 1
     tmp_path = xlsx_path + ".tmp"
+
+    # Sheet-spezifische Dateinamen basierend auf sheet_index
+    sn = sheet_index  # Kuerzel
+    drawing_xml  = f"xl/drawings/drawing{sn}.xml"
+    drawing_rels = f"xl/drawings/_rels/drawing{sn}.xml.rels"
+    chart_xml    = f"xl/charts/chartEx{sn}.xml"
+    chart_rels   = f"xl/charts/_rels/chartEx{sn}.xml.rels"
+    style_xml    = f"xl/charts/style{sn}.xml"
+    colors_xml   = f"xl/charts/colors{sn}.xml"
+    sheet_part   = f"xl/worksheets/sheet{sn}.xml"
+    rels_part    = f"xl/worksheets/_rels/sheet{sn}.xml.rels"
 
     with zipfile.ZipFile(xlsx_path, "r") as zin:
         names = zin.namelist()
@@ -248,20 +265,14 @@ def inject_box_whisker_chart(xlsx_path: str, sheet_name: str, n_data_rows: int,
         workbook_xml = zin.read("xl/workbook.xml").decode("utf-8")
         defined_names = (
             f'<definedNames>'
-            f'<definedName name="_xlchart.v1.5" hidden="1">{sheet_name}!$A$2:$A${last_row}</definedName>'
-            f'<definedName name="_xlchart.v1.6" hidden="1">{sheet_name}!$B$1</definedName>'
-            f'<definedName name="_xlchart.v1.7" hidden="1">{sheet_name}!$B$2:$B${last_row}</definedName>'
-            f'<definedName name="_xlchart.v1.8" hidden="1">{sheet_name}!$C$1</definedName>'
-            f'<definedName name="_xlchart.v1.9" hidden="1">{sheet_name}!$C$2:$C${last_row}</definedName>'
+            f'<definedName name="_xlchart.v{sn}.5" hidden="1">{sheet_name}!$A$2:$A${last_row}</definedName>'
+            f'<definedName name="_xlchart.v{sn}.6" hidden="1">{sheet_name}!$B$1</definedName>'
+            f'<definedName name="_xlchart.v{sn}.7" hidden="1">{sheet_name}!$B$2:$B${last_row}</definedName>'
+            f'<definedName name="_xlchart.v{sn}.8" hidden="1">{sheet_name}!$C$1</definedName>'
+            f'<definedName name="_xlchart.v{sn}.9" hidden="1">{sheet_name}!$C$2:$C${last_row}</definedName>'
             f'</definedNames>'
         )
 
-        # Regex statt exaktem String-Vergleich: openpyxl schreibt das
-        # selbstschliessende Tag mal als "<definedNames/>", mal als
-        # "<definedNames />" (mit Leerzeichen) - ein zu enger String-
-        # Vergleich hat genau das beim ersten Versuch uebersehen und so
-        # ein zweites, ungueltiges <definedNames>-Element erzeugt. Jetzt
-        # robust per Regex, die beide Schreibweisen abdeckt.
         import re as _re
         self_closing_pattern = _re.compile(r"<definedNames\s*/>")
         open_close_pattern = _re.compile(r"<definedNames\s*>.*?</definedNames\s*>", _re.DOTALL)
@@ -279,10 +290,6 @@ def inject_box_whisker_chart(xlsx_path: str, sheet_name: str, n_data_rows: int,
         else:
             workbook_xml = workbook_xml.replace("</workbook>", defined_names + "</workbook>")
 
-        # Sicherheitsnetz: falls trotzdem mehr als ein <definedNames>-
-        # Element entstanden ist, das ist ungueltiges OOXML und wuerde
-        # Excel zum Ablehnen der Datei bringen - lieber laut scheitern
-        # als eine kaputte Datei stillschweigend ausliefern.
         if workbook_xml.count("<definedNames") > 1:
             raise RuntimeError(
                 "boxwhisker_injector: mehrere <definedNames>-Elemente nach "
@@ -292,25 +299,19 @@ def inject_box_whisker_chart(xlsx_path: str, sheet_name: str, n_data_rows: int,
 
         content_types = zin.read("[Content_Types].xml").decode("utf-8")
         new_overrides = (
-            '<Override PartName="/xl/drawings/drawing1.xml" '
-            'ContentType="application/vnd.openxmlformats-officedocument.drawing+xml"/>'
-            '<Override PartName="/xl/charts/chartEx1.xml" '
-            'ContentType="application/vnd.ms-office.chartex+xml"/>'
-            '<Override PartName="/xl/charts/style1.xml" '
-            'ContentType="application/vnd.ms-office.chartstyle+xml"/>'
-            '<Override PartName="/xl/charts/colors1.xml" '
-            'ContentType="application/vnd.ms-office.chartcolorstyle+xml"/>'
+            f'<Override PartName="/xl/drawings/drawing{sn}.xml" '
+            f'ContentType="application/vnd.openxmlformats-officedocument.drawing+xml"/>'
+            f'<Override PartName="/xl/charts/chartEx{sn}.xml" '
+            f'ContentType="application/vnd.ms-office.chartex+xml"/>'
+            f'<Override PartName="/xl/charts/style{sn}.xml" '
+            f'ContentType="application/vnd.ms-office.chartstyle+xml"/>'
+            f'<Override PartName="/xl/charts/colors{sn}.xml" '
+            f'ContentType="application/vnd.ms-office.chartcolorstyle+xml"/>'
         )
         content_types = content_types.replace("</Types>", new_overrides + "</Types>")
 
-        sheet_part = "xl/worksheets/sheet1.xml"
         sheet_xml = zin.read(sheet_part).decode("utf-8")
         if "<drawing " not in sheet_xml:
-            # Wichtiger Fix: das worksheet-Root-Element deklariert von Haus
-            # aus KEIN "r:"-Namespace-Praefix (das gibt es nur im Kontext
-            # anderer Teile wie workbook.xml). Ohne explizite Deklaration
-            # hier ist <drawing r:id="..."/> ungueltiges XML ("unbound
-            # prefix") und Excel/andere Tools lehnen die Datei komplett ab.
             if 'xmlns:r=' not in sheet_xml.split('>', 1)[0]:
                 sheet_xml = sheet_xml.replace(
                     '<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"',
@@ -320,22 +321,21 @@ def inject_box_whisker_chart(xlsx_path: str, sheet_name: str, n_data_rows: int,
                 )
             sheet_xml = sheet_xml.replace("</worksheet>", '<drawing r:id="rId1"/></worksheet>')
 
-        rels_part = "xl/worksheets/_rels/sheet1.xml.rels"
         sheet_rels_xml = (
             '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
             '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'
-            '<Relationship Id="rId1" '
-            'Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/drawing" '
-            'Target="../drawings/drawing1.xml"/></Relationships>'
+            f'<Relationship Id="rId1" '
+            f'Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/drawing" '
+            f'Target="../drawings/drawing{sn}.xml"/></Relationships>'
         )
         if rels_part in names:
             existing = zin.read(rels_part).decode("utf-8")
-            if "drawing1.xml" not in existing:
+            if f"drawing{sn}.xml" not in existing:
                 sheet_rels_xml = existing.replace(
                     "</Relationships>",
-                    '<Relationship Id="rIdDrawing" '
-                    'Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/drawing" '
-                    'Target="../drawings/drawing1.xml"/></Relationships>'
+                    f'<Relationship Id="rIdDrawing{sn}" '
+                    f'Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/drawing" '
+                    f'Target="../drawings/drawing{sn}.xml"/></Relationships>'
                 )
             else:
                 sheet_rels_xml = existing
@@ -355,30 +355,27 @@ def inject_box_whisker_chart(xlsx_path: str, sheet_name: str, n_data_rows: int,
 
             zout.writestr(rels_part, sheet_rels_xml)
             zout.writestr(
-                "xl/drawings/_rels/drawing1.xml.rels",
+                drawing_rels,
                 '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
                 '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'
-                '<Relationship Id="rId1" '
-                'Type="http://schemas.microsoft.com/office/2014/relationships/chartEx" '
-                'Target="../charts/chartEx1.xml"/></Relationships>'
+                f'<Relationship Id="rId1" '
+                f'Type="http://schemas.microsoft.com/office/2014/relationships/chartEx" '
+                f'Target="../charts/chartEx{sn}.xml"/></Relationships>'
             )
             zout.writestr(
-                "xl/charts/_rels/chartEx1.xml.rels",
+                chart_rels,
                 '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
                 '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'
-                '<Relationship Id="rId2" '
-                'Type="http://schemas.microsoft.com/office/2011/relationships/chartColorStyle" '
-                'Target="colors1.xml"/>'
-                '<Relationship Id="rId1" '
-                'Type="http://schemas.microsoft.com/office/2011/relationships/chartStyle" '
-                'Target="style1.xml"/></Relationships>'
+                f'<Relationship Id="rId2" '
+                f'Type="http://schemas.microsoft.com/office/2011/relationships/chartColorStyle" '
+                f'Target="colors{sn}.xml"/>'
+                f'<Relationship Id="rId1" '
+                f'Type="http://schemas.microsoft.com/office/2011/relationships/chartStyle" '
+                f'Target="style{sn}.xml"/></Relationships>'
             )
-            zout.writestr("xl/drawings/drawing1.xml", _drawing_xml())
-            zout.writestr(
-                "xl/charts/chartEx1.xml",
-                _chartex_xml(sheet_name, chart_title, series1_name, series2_name),
-            )
-            zout.writestr("xl/charts/style1.xml", base64.b64decode(_STYLE1_XML_B64))
-            zout.writestr("xl/charts/colors1.xml", base64.b64decode(_COLORS1_XML_B64))
+            zout.writestr(drawing_xml, _drawing_xml())
+            zout.writestr(chart_xml, _chartex_xml(sheet_name, chart_title, series1_name, series2_name))
+            zout.writestr(style_xml, base64.b64decode(_STYLE1_XML_B64))
+            zout.writestr(colors_xml, base64.b64decode(_COLORS1_XML_B64))
 
     shutil.move(tmp_path, xlsx_path)
