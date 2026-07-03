@@ -158,7 +158,7 @@ _COLORS1_XML_B64 = (
 )
 
 
-def _chartex_xml(sheet_name: str, chart_title: str, series1_name: str, series2_name: str) -> str:
+def _chartex_xml(sheet_name: str, chart_title: str, series1_name: str, series2_name: str, sn: int = 1) -> str:
     title_esc = xml_escape(chart_title)
     s1_esc = xml_escape(series1_name)
     s2_esc = xml_escape(series2_name)
@@ -169,12 +169,12 @@ def _chartex_xml(sheet_name: str, chart_title: str, series1_name: str, series2_n
         'xmlns:cx="http://schemas.microsoft.com/office/drawing/2014/chartex">'
         '<cx:chartData>'
         '<cx:data id="0">'
-        '<cx:strDim type="cat"><cx:f>_xlchart.v1.5</cx:f></cx:strDim>'
-        '<cx:numDim type="val"><cx:f>_xlchart.v1.7</cx:f></cx:numDim>'
+        f'<cx:strDim type="cat"><cx:f>_xlchart.v{sn}.5</cx:f></cx:strDim>'
+        f'<cx:numDim type="val"><cx:f>_xlchart.v{sn}.7</cx:f></cx:numDim>'
         '</cx:data>'
         '<cx:data id="1">'
-        '<cx:strDim type="cat"><cx:f>_xlchart.v1.5</cx:f></cx:strDim>'
-        '<cx:numDim type="val"><cx:f>_xlchart.v1.9</cx:f></cx:numDim>'
+        f'<cx:strDim type="cat"><cx:f>_xlchart.v{sn}.5</cx:f></cx:strDim>'
+        f'<cx:numDim type="val"><cx:f>_xlchart.v{sn}.9</cx:f></cx:numDim>'
         '</cx:data>'
         '</cx:chartData>'
         '<cx:chart>'
@@ -183,13 +183,13 @@ def _chartex_xml(sheet_name: str, chart_title: str, series1_name: str, series2_n
         '</cx:title>'
         '<cx:plotArea><cx:plotAreaRegion>'
         f'<cx:series layoutId="boxWhisker" uniqueId="{{D6C3A363-B570-4F4B-8052-E0139D162600}}">'
-        f'<cx:tx><cx:txData><cx:f>_xlchart.v1.6</cx:f><cx:v>{s1_esc}</cx:v></cx:txData></cx:tx>'
+        f'<cx:tx><cx:txData><cx:f>_xlchart.v{sn}.6</cx:f><cx:v>{s1_esc}</cx:v></cx:txData></cx:tx>'
         '<cx:dataId val="0" />'
         '<cx:layoutPr><cx:visibility meanLine="1" meanMarker="0" nonoutliers="1" outliers="1" />'
         '<cx:statistics quartileMethod="exclusive" /></cx:layoutPr>'
         '</cx:series>'
         f'<cx:series layoutId="boxWhisker" uniqueId="{{50F7E9F9-D6B5-4CD6-AD62-CBAF7E464DCA}}">'
-        f'<cx:tx><cx:txData><cx:f>_xlchart.v1.8</cx:f><cx:v>{s2_esc}</cx:v></cx:txData></cx:tx>'
+        f'<cx:tx><cx:txData><cx:f>_xlchart.v{sn}.8</cx:f><cx:v>{s2_esc}</cx:v></cx:txData></cx:tx>'
         '<cx:dataId val="1" />'
         '<cx:layoutPr><cx:visibility meanLine="1" meanMarker="0" /><cx:statistics quartileMethod="exclusive" /></cx:layoutPr>'
         '</cx:series>'
@@ -380,7 +380,7 @@ def inject_box_whisker_chart(xlsx_path: str, sheet_name: str, n_data_rows: int,
                 f'Target="style{sn}.xml"/></Relationships>'
             )
             zout.writestr(drawing_xml, _drawing_xml())
-            zout.writestr(chart_xml, _chartex_xml(sheet_name, chart_title, series1_name, series2_name))
+            zout.writestr(chart_xml, _chartex_xml(sheet_name, chart_title, series1_name, series2_name, sn))
             zout.writestr(style_xml, base64.b64decode(_STYLE1_XML_B64))
             zout.writestr(colors_xml, base64.b64decode(_COLORS1_XML_B64))
 
