@@ -235,11 +235,17 @@ def _drawing_xml() -> str:
 def inject_box_whisker_chart(xlsx_path: str, sheet_name: str, n_data_rows: int,
                               chart_title: str, series1_name: str = "Turbiniert_MW",
                               series2_name: str = "Hochgepumpt_MW",
-                              sheet_index: int = 1) -> None:
+                              sheet_index: int = 1,
+                              col_cat: str = "A",
+                              col1: str = "B",
+                              col2: str = "C") -> None:
     """Postprocessing-Schritt: oeffnet die bereits gespeicherte xlsx-Datei
     und fuegt das Box-Whisker-Diagramm ein. n_data_rows = Anzahl
-    Datenzeilen OHNE Headerzeile (also len(df)). Geht von Spalten
-    A=timestamp, B=series1, C=series2 aus, Header in Zeile 1.
+    Datenzeilen OHNE Headerzeile (also len(df)).
+
+    col_cat: Spaltenbuchstabe fuer die Kategorien (Zeitachse), Default 'A'
+    col1:    Spaltenbuchstabe fuer series1, Default 'B'
+    col2:    Spaltenbuchstabe fuer series2, Default 'C'
 
     sheet_index: 1-basierter Index des Ziel-Sheets (sheet1.xml = 1,
     sheet2.xml = 2, ...). Wichtig wenn mehrere Charts in dieselbe Datei
@@ -265,11 +271,11 @@ def inject_box_whisker_chart(xlsx_path: str, sheet_name: str, n_data_rows: int,
         workbook_xml = zin.read("xl/workbook.xml").decode("utf-8")
         defined_names = (
             f'<definedNames>'
-            f'<definedName name="_xlchart.v{sn}.5" hidden="1">{sheet_name}!$A$2:$A${last_row}</definedName>'
-            f'<definedName name="_xlchart.v{sn}.6" hidden="1">{sheet_name}!$B$1</definedName>'
-            f'<definedName name="_xlchart.v{sn}.7" hidden="1">{sheet_name}!$B$2:$B${last_row}</definedName>'
-            f'<definedName name="_xlchart.v{sn}.8" hidden="1">{sheet_name}!$C$1</definedName>'
-            f'<definedName name="_xlchart.v{sn}.9" hidden="1">{sheet_name}!$C$2:$C${last_row}</definedName>'
+            f'<definedName name="_xlchart.v{sn}.5" hidden="1">{sheet_name}!${col_cat}$2:${col_cat}${last_row}</definedName>'
+            f'<definedName name="_xlchart.v{sn}.6" hidden="1">{sheet_name}!${col1}$1</definedName>'
+            f'<definedName name="_xlchart.v{sn}.7" hidden="1">{sheet_name}!${col1}$2:${col1}${last_row}</definedName>'
+            f'<definedName name="_xlchart.v{sn}.8" hidden="1">{sheet_name}!${col2}$1</definedName>'
+            f'<definedName name="_xlchart.v{sn}.9" hidden="1">{sheet_name}!${col2}$2:${col2}${last_row}</definedName>'
             f'</definedNames>'
         )
 
