@@ -387,22 +387,29 @@ def main():
             if not pumped_wide.empty:
                 writer.sheets["Pumpspeicher"].column_dimensions["A"].width = 20
 
-            # Grafik-Sheet fuer AKW: nur timestamp + Total_MW + Goesgen_errechnet_MW
-            # damit der Box-Whisker-Injektor (erwartet genau 2 Datenspalten B+C)
-            # korrekt funktioniert.
-            if not akw_wide.empty:
-                grafik_cols = ["timestamp"]
-                for col in ["Total_MW", "Goesgen_errechnet_MW"]:
-                    if col in akw_wide.columns:
-                        grafik_cols.append(col)
-                if len(grafik_cols) > 1:
-                    akw_wide[grafik_cols].to_excel(
-                        writer, sheet_name="AKW_Grafik", index=False)
-                    writer.sheets["AKW_Grafik"].column_dimensions["A"].width = 20
+        # Box-Whisker-Diagramme nach dem Speichern einfuegen.
+        # Spaltenbuchstaben im AKW-Sheet:
+        # A=timestamp, B=Beznau 1, C=Beznau 2, D=Goesgen direkt,
+        # E=Leibstadt, F=Total_Nuklear_A75_MW, G=Goesgen_errechnet_MW, H=Total_MW
+        # Chart: H (Total_MW) vs G (Goesgen_errechnet_MW), Kategorien A (timestamp)
+        if not akw_wide.empty:
+            col_map = {col: chr(ord("A") + i) for i, col in enumerate(akw_wide.columns)}
+            if "Total_MW" in col_map and "Goesgen_errechnet_MW" in col_map:
+                datum_von = akw_wide["timestamp"].dropna().min().strftime("%d.%m.%Y")
+                datum_bis = akw_wide["timestamp"].dropna().max().strftime("%d.%m.%Y")
+                inject_box_whisker_chart(
+                    args.out,
+                    sheet_name="AKW",
+                    n_data_rows=len(akw_wide),
+                    chart_title=f"AKW Schweiz ({datum_von} – {datum_bis}): Gesamtleistung vs. Gösgen errechnet (MW)",
+                    series1_name="Total_MW",
+                    series2_name="Goesgen_errechnet_MW",
+                    sheet_index=1,
+                    col_cat=col_map["timestamp"],
+                    col1=col_map["Total_MW"],
+                    col2=col_map["Goesgen_errechnet_MW"],
+                )
 
-        # Box-Whisker-Diagramme nach dem Speichern einfuegen
-        # sheet_index muss der Position des Sheets in der Arbeitsmappe entsprechen:
-        # Sheet 1 = AKW, Sheet 2 = Pumpspeicher, Sheet 3 = AKW_Grafik
         if not pumped_wide.empty:
             datum_von = pumped_wide["timestamp"].min().strftime("%d.%m.%Y")
             datum_bis = pumped_wide["timestamp"].max().strftime("%d.%m.%Y")
@@ -415,21 +422,6 @@ def main():
                 series2_name="Hochgepumpt_MW",
                 sheet_index=2,
             )
-
-        if not akw_wide.empty:
-            grafik_cols_check = [c for c in ["Total_MW", "Goesgen_errechnet_MW"] if c in akw_wide.columns]
-            if len(grafik_cols_check) >= 2:
-                datum_von = akw_wide["timestamp"].dropna().min().strftime("%d.%m.%Y")
-                datum_bis = akw_wide["timestamp"].dropna().max().strftime("%d.%m.%Y")
-                inject_box_whisker_chart(
-                    args.out,
-                    sheet_name="AKW_Grafik",
-                    n_data_rows=len(akw_wide),
-                    chart_title=f"AKW Schweiz ({datum_von} – {datum_bis}): Gesamtleistung vs. Gösgen errechnet (MW)",
-                    series1_name="Total_MW",
-                    series2_name="Goesgen_errechnet_MW",
-                    sheet_index=3,
-                )
 
         print(f"Fertig: {args.out}")
         print(f"  AKW-Zeilen: {len(akw_wide)}, Pumpspeicher-Zeilen: {len(pumped_wide)}")
