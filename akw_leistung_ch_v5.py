@@ -2,7 +2,7 @@
 """
 Schweizer Strom – AKW pro Block + Pumpspeicher, mit Wochen-Export nach Excel
 ================================================================================
-Version: v5
+Version: v5.1 - Box-Whisker-Diagramme fuer AKW_Grafik- und Pumpspeicher-Sheet; timestamp-Spaltenbreite automatisch
 
 Drei Modi:
   (Standard)   Live-Snapshot in der Konsole (letzter verfügbarer Wert).
@@ -47,8 +47,6 @@ mit --raw die Rohantwort einer einzelnen Abfrage ansehen.
 """
 
 import os
-from dotenv import load_dotenv
-load_dotenv()  # liest .env im aktuellen Verzeichnis
 import re
 import sys
 import time
@@ -59,6 +57,7 @@ import requests
 import pandas as pd
 from entsoe import EntsoeRawClient
 from entsoe.exceptions import NoMatchingDataError
+from boxwhisker_injector import inject_box_whisker_chart
 
 PSR_NUCLEAR = "B14"
 PSR_PUMPED_STORAGE = "B10"
@@ -74,7 +73,7 @@ AKW_NAMEN = ["beznau", "gösgen", "goesgen", "leibstadt"]
 # laesst sich auch durch ein spaeteres Loeschen nicht mehr rueckgaengig
 # machen (alte Commits bleiben in der Git-Historie sichtbar).
 # =============================================================================
-ENTSOE_TOKEN_HARDCODED = ""  # Token wird aus .env-Datei gelesen (ENTSOE_TOKEN=...)
+ENTSOE_TOKEN_HARDCODED = "dein-token-hier-eintragen"
 
 
 def strip_ns(tag: str) -> str:
@@ -370,9 +369,54 @@ def main():
             (akw_wide if not akw_wide.empty
              else pd.DataFrame({"Hinweis": ["Keine AKW-Daten erhalten - mit --raw pruefen"]})
              ).to_excel(writer, sheet_name="AKW", index=False)
+            if not akw_wide.empty:
+                writer.sheets["AKW"].column_dimensions["A"].width = 20
+
             (pumped_wide if not pumped_wide.empty
              else pd.DataFrame({"Hinweis": ["Keine Pumpspeicher-Daten erhalten - mit --raw pruefen"]})
              ).to_excel(writer, sheet_name="Pumpspeicher", index=False)
+            if not pumped_wide.empty:
+                writer.sheets["Pumpspeicher"].column_dimensions["A"].width = 20
+
+            # Grafik-Sheet fuer AKW: nur timestamp + Total_MW + Goesgen_errechnet_MW
+            # damit der Box-Whisker-Injektor (erwartet genau 2 Datenspalten B+C)
+            # korrekt funktioniert.
+            if not akw_wide.empty:
+                grafik_cols = ["timestamp"]
+                for col in ["Total_MW", "Goesgen_errechnet_MW"]:
+                    if col in akw_wide.columns:
+                        grafik_cols.append(col)
+                if len(grafik_cols) > 1:
+                    akw_wide[grafik_cols].to_excel(
+                        writer, sheet_name="AKW_Grafik", index=False)
+                    writer.sheets["AKW_Grafik"].column_dimensions["A"].width = 20
+
+        # Box-Whisker-Diagramme nach dem Speichern einfuegen
+        if not pumped_wide.empty:
+            datum_von = pumped_wide["timestamp"].min().strftime("%d.%m.%Y")
+            datum_bis = pumped_wide["timestamp"].max().strftime("%d.%m.%Y")
+            inject_box_whisker_chart(
+                args.out,
+                sheet_name="Pumpspeicher",
+                n_data_rows=len(pumped_wide),
+                chart_title=f"Pumpspeicher Schweiz ({datum_von} – {datum_bis}): Turbiniert vs. Hochgepumpt (MW)",
+                series1_name="Turbiniert_MW",
+                series2_name="Hochgepumpt_MW",
+            )
+
+        if not akw_wide.empty:
+            grafik_cols_check = [c for c in ["Total_MW", "Goesgen_errechnet_MW"] if c in akw_wide.columns]
+            if len(grafik_cols_check) >= 2:
+                datum_von = akw_wide["timestamp"].dropna().min().strftime("%d.%m.%Y")
+                datum_bis = akw_wide["timestamp"].dropna().max().strftime("%d.%m.%Y")
+                inject_box_whisker_chart(
+                    args.out,
+                    sheet_name="AKW_Grafik",
+                    n_data_rows=len(akw_wide),
+                    chart_title=f"AKW Schweiz ({datum_von} – {datum_bis}): Gesamtleistung vs. Gösgen errechnet (MW)",
+                    series1_name="Total_MW",
+                    series2_name="Goesgen_errechnet_MW",
+                )
 
         print(f"Fertig: {args.out}")
         print(f"  AKW-Zeilen: {len(akw_wide)}, Pumpspeicher-Zeilen: {len(pumped_wide)}")
