@@ -23,21 +23,41 @@ A formal inquiry was sent to **Swissgrid** and **ElCom** (Swiss electricity regu
 ```bash
 python3 -m venv venv
 source venv/bin/activate
-pip install entsoe-py pandas openpyxl
+pip install entsoe-py pandas openpyxl python-dotenv
 ```
 
 ## Setup: ENTSO-E API Token
 
+### 1. Get a token
 1. Register a free account at https://transparency.entsoe.eu
 2. Request API access by email to transparency@entsoe.eu (subject: "Restful API access") — usually activated within 1–3 working days
 3. Generate your token under "My Account Settings" → "Web Api Security Token"
-4. Add your token to the scripts: `ENTSOE_TOKEN_HARDCODED = "your-token-here"`
 
-> ⚠️ **Never commit your token to a public repository.** The `.gitignore` file excludes the scripts by default — if you want to track them, remove the token first.
+### 2. Store the token in a `.env` file
+
+Create a file named `.env` in the project directory (same folder as the scripts):
+
+```
+ENTSOE_TOKEN=your-token-here
+```
+
+> ⚠️ **Never commit the `.env` file to a public repository.** It is already listed in `.gitignore` and will be automatically excluded from all commits.
+
+The scripts read the token automatically via `python-dotenv` — no manual export or environment variable setup needed.
+
+### Why `.env` instead of hardcoding?
+
+The token is a personal credential. Storing it in `.env` keeps it:
+- **Local only** — never accidentally pushed to GitHub
+- **Easy to update** — change it in one place, all scripts pick it up
+- **Shareable code** — others can clone the repo and add their own token without modifying the scripts
 
 ## Usage
 
 ```bash
+# Activate virtual environment first
+source venv/bin/activate
+
 # Live snapshot (current values)
 python3 at_pumpspeicher_v4.py
 
