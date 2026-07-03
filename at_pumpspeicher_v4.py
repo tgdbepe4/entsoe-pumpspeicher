@@ -47,6 +47,8 @@ mit --raw die Rohantwort ansehen.
 """
 
 import os
+from dotenv import load_dotenv
+load_dotenv()  # liest .env im aktuellen Verzeichnis
 import re
 import sys
 import time
@@ -69,7 +71,7 @@ PSR_PUMPED_STORAGE = "B10"
 # WARNUNG: Echtes, funktionsfaehiges Credential im Klartext. Vor einem Git-
 # Commit unbedingt entfernen oder .gitignore verwenden.
 # =============================================================================
-ENTSOE_TOKEN_HARDCODED = "dein-token-hier-eintragen"
+ENTSOE_TOKEN_HARDCODED = ""  # Token wird aus .env-Datei gelesen (ENTSOE_TOKEN=...)
 
 
 def strip_ns(tag: str) -> str:
