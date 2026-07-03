@@ -314,9 +314,16 @@ def build_pumped_wide(df: pd.DataFrame) -> pd.DataFrame:
         return pd.DataFrame()
     wide = df.pivot_table(index="timestamp", columns="direction", values="mw", aggfunc="mean")
     wide = wide.rename(columns={
-        "in": "Erzeugung_MW",
-        "out": "Pumpverbrauch_MW",
+        "in": "Turbiniert_MW",
+        "out": "Hochgepumpt_MW",
     })
+    # Beide Spalten muessen existieren (CH meldet Hochgepumpt nicht,
+    # aber der Box-Whisker-Injektor erwartet immer genau 2 Datenspalten)
+    for col in ("Turbiniert_MW", "Hochgepumpt_MW"):
+        if col not in wide.columns:
+            wide[col] = 0.0
+        wide[col] = wide[col].fillna(0.0)
+    wide = wide[["Turbiniert_MW", "Hochgepumpt_MW"]]
     return wide.reset_index()
 
 
@@ -394,6 +401,8 @@ def main():
                     writer.sheets["AKW_Grafik"].column_dimensions["A"].width = 20
 
         # Box-Whisker-Diagramme nach dem Speichern einfuegen
+        # sheet_index muss der Position des Sheets in der Arbeitsmappe entsprechen:
+        # Sheet 1 = AKW, Sheet 2 = Pumpspeicher, Sheet 3 = AKW_Grafik
         if not pumped_wide.empty:
             datum_von = pumped_wide["timestamp"].min().strftime("%d.%m.%Y")
             datum_bis = pumped_wide["timestamp"].max().strftime("%d.%m.%Y")
@@ -404,6 +413,7 @@ def main():
                 chart_title=f"Pumpspeicher Schweiz ({datum_von} – {datum_bis}): Turbiniert vs. Hochgepumpt (MW)",
                 series1_name="Turbiniert_MW",
                 series2_name="Hochgepumpt_MW",
+                sheet_index=2,
             )
 
         if not akw_wide.empty:
@@ -418,6 +428,7 @@ def main():
                     chart_title=f"AKW Schweiz ({datum_von} – {datum_bis}): Gesamtleistung vs. Gösgen errechnet (MW)",
                     series1_name="Total_MW",
                     series2_name="Goesgen_errechnet_MW",
+                    sheet_index=3,
                 )
 
         print(f"Fertig: {args.out}")
