@@ -394,10 +394,32 @@ def main():
                 datum_bis = akw_wide["timestamp"].dropna().max().strftime("%d.%m.%Y")
                 chart.title = f"AKW Schweiz ({datum_von} – {datum_bis}): Nuklearproduktion (MW)"
                 chart.y_axis.title = "MW"
-                chart.y_axis.scaling.min = 0   # Achse startet bei 0
-                chart.dispBlanksAs = "gap"     # NaN = Luecke, NICHT 0 (war vorher falsch als displayBlanksAs geschrieben)
+                chart.y_axis.scaling.min = 0
+                chart.y_axis.numFmt = '#,##0'        # Zahlenformat: tausender-Trenner, keine Dezimalen
+                chart.y_axis.majorGridlines = None   # keine horizontalen Hilfslinien (optionaler Stilwunsch)
+                chart.dispBlanksAs = "gap"
                 chart.width = 28
-                chart.height = 14
+                chart.height = 16                    # etwas hoeher fuer mehr Platz
+
+                # Titel-Schriftgroesse: openpyxl ermoeglicht das ueber txPr
+                from openpyxl.chart.text import RichText
+                from openpyxl.drawing.text import (
+                    RichTextProperties, Paragraph, ParagraphProperties, CharacterProperties
+                )
+                chart.title.txPr = RichText(
+                    bodyPr=RichTextProperties(),
+                    p=[Paragraph(
+                        pPr=ParagraphProperties(
+                            defRPr=CharacterProperties(sz=1400)  # 14pt (sz in 1/100 pt)
+                        ),
+                        endParaRPr=CharacterProperties(sz=1400),
+                    )],
+                )
+
+                # Legende unten platzieren (statt rechts, Standard bei Excel)
+                from openpyxl.chart.legend import Legend
+                chart.legend = Legend()
+                chart.legend.position = "b"          # b = bottom
 
                 # Serien in gewuenschter Reihenfolge: zuerst Gesamtsumme, dann Einzelbloecke
                 for col_name in ["Total_Nuklear_A75_MW", "Beznau 1", "Beznau 2",
