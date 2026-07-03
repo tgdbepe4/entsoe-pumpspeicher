@@ -47,6 +47,8 @@ mit --raw die Rohantwort einer einzelnen Abfrage ansehen.
 """
 
 import os
+from dotenv import load_dotenv
+load_dotenv()  # liest .env im aktuellen Verzeichnis
 import re
 import sys
 import time
@@ -72,7 +74,7 @@ AKW_NAMEN = ["beznau", "gösgen", "goesgen", "leibstadt"]
 # laesst sich auch durch ein spaeteres Loeschen nicht mehr rueckgaengig
 # machen (alte Commits bleiben in der Git-Historie sichtbar).
 # =============================================================================
-ENTSOE_TOKEN_HARDCODED = "dein-token-hier-eintragen"
+ENTSOE_TOKEN_HARDCODED = ""  # Token wird aus .env-Datei gelesen (ENTSOE_TOKEN=...)
 
 
 def strip_ns(tag: str) -> str:
