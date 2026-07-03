@@ -394,8 +394,8 @@ def main():
                 datum_bis = akw_wide["timestamp"].dropna().max().strftime("%d.%m.%Y")
                 chart.title = f"AKW Schweiz ({datum_von} – {datum_bis}): Nuklearproduktion (MW)"
                 chart.y_axis.title = "MW"
-                chart.y_axis.scaling.min = 0   # Achse startet bei 0, keine negativen Werte
-                chart.displayBlanksAs = "gap"  # NaN = Luecke in der Linie, nicht 0
+                chart.y_axis.scaling.min = 0   # Achse startet bei 0
+                chart.dispBlanksAs = "gap"     # NaN = Luecke, NICHT 0 (war vorher falsch als displayBlanksAs geschrieben)
                 chart.width = 28
                 chart.height = 14
 
