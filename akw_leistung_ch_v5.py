@@ -60,7 +60,6 @@ import pandas as pd
 from entsoe import EntsoeRawClient
 from entsoe.exceptions import NoMatchingDataError
 from boxwhisker_injector import inject_box_whisker_chart
-from openpyxl.chart import LineChart, Reference
 
 PSR_NUCLEAR = "B14"
 PSR_PUMPED_STORAGE = "B10"
@@ -379,78 +378,24 @@ def main():
             (akw_wide if not akw_wide.empty
              else pd.DataFrame({"Hinweis": ["Keine AKW-Daten erhalten - mit --raw pruefen"]})
              ).to_excel(writer, sheet_name="AKW", index=False)
-
             if not akw_wide.empty:
-                ws = writer.sheets["AKW"]
-                ws.column_dimensions["A"].width = 20
-                n_rows = len(akw_wide)
-                col_indices = {col: i + 1 for i, col in enumerate(akw_wide.columns)}
+                writer.sheets["AKW"].column_dimensions["A"].width = 20
 
-                # Liniendiagramm: Total_Nuklear_A75_MW als Hauptlinie (vollstaendig),
-                # plus Einzelbloecke. NaN-Werte erscheinen als Luecken in der Linie –
-                # bewusst so, da die Luecken echte Datenfehler widerspiegeln.
-                chart = LineChart()
-                datum_von = akw_wide["timestamp"].dropna().min().strftime("%d.%m.%Y")
-                datum_bis = akw_wide["timestamp"].dropna().max().strftime("%d.%m.%Y")
-                chart.title = f"AKW Schweiz ({datum_von} – {datum_bis}): Nuklearproduktion (MW)"
-                chart.style = 10              # Excel-Stil 10: sauber, weisser Hintergrund, dezente Gitternetzlinien
-                chart.y_axis.title = "MW"
-                chart.y_axis.scaling.min = 0
-                chart.y_axis.numFmt = '#,##0'
-                chart.y_axis.tickLblPos = "nextTo"   # Zahlen werden neben den Achsen-Ticks angezeigt
-                chart.y_axis.delete = False           # Y-Achse explizit anzeigen
-                chart.dispBlanksAs = "gap"
-                chart.width = 28
-                chart.height = 16
-
-                # Titel-Schriftgroesse: 20pt
-                from openpyxl.chart.text import RichText
-                from openpyxl.drawing.text import (
-                    RichTextProperties, Paragraph, ParagraphProperties, CharacterProperties
-                )
-                chart.title.txPr = RichText(
-                    bodyPr=RichTextProperties(),
-                    p=[Paragraph(
-                        pPr=ParagraphProperties(
-                            defRPr=CharacterProperties(sz=2000, b=True)  # 20pt, fett
-                        ),
-                        endParaRPr=CharacterProperties(sz=2000, b=True),
-                    )],
-                )
-
-                # Legende unten
-                from openpyxl.chart.legend import Legend
-                chart.legend = Legend()
-                chart.legend.position = "b"
-
-                # Serien in gewuenschter Reihenfolge: zuerst Gesamtsumme, dann Einzelbloecke
-                series_config = [
-                    ("Total_Nuklear_A75_MW", "2E4D7B", 28000),   # dunkelblau, 2.2pt
-                    ("Beznau 1",             "C0392B", 16000),   # rot, 1.3pt
-                    ("Beznau 2",             "E67E22", 16000),   # orange, 1.3pt
-                    ("Leibstadt",            "8E44AD", 16000),   # lila, 1.3pt
-                    ("Goesgen_errechnet_MW", "27AE60", 16000),   # gruen, 1.3pt
-                ]
-                for col_name, color, line_w in series_config:
-                    if col_name in col_indices:
-                        idx = col_indices[col_name]
-                        data = Reference(ws, min_col=idx, min_row=1, max_row=n_rows + 1)
-                        chart.add_data(data, titles_from_data=True)
-                        # Linienstil setzen
-                        s = chart.series[-1]
-                        s.graphicalProperties.line.solidFill = color
-                        s.graphicalProperties.line.width = line_w
-                        s.smooth = False
-
-                # Zeitachse (Spalte A)
-                cats = Reference(ws, min_col=1, min_row=2, max_row=n_rows + 1)
-                chart.set_categories(cats)
-                chart.x_axis.tickLblSkip = max(1, n_rows // 20)
-                chart.x_axis.number_format = "dd.MM HH:mm"
-
-                # Diagramm rechts neben den Datenspalten platzieren (ab Spalte J)
-                chart.anchor = "J2"
-                ws.add_chart(chart)
+            # Grafik-Sheet fuer AKW: nur timestamp + Total_Nuklear_A75_MW + Leibstadt
+            # Box-Whisker-Injektor erwartet genau 2 Datenspalten (B + C).
+            # Total_Nuklear_A75_MW: vollstaendige Zeitreihe ueber die ganze Woche
+            # Leibstadt: nur wo A73-Daten vorhanden (27-28.6.), danach Luecke –
+            # zeigt den Anteil Leibstadt an der Gesamtproduktion.
+            akw_grafik = pd.DataFrame()
+            if not akw_wide.empty:
+                grafik_cols = ["timestamp"]
+                for col in ["Total_Nuklear_A75_MW", "Leibstadt"]:
+                    if col in akw_wide.columns:
+                        grafik_cols.append(col)
+                if len(grafik_cols) >= 2:
+                    akw_grafik = akw_wide[grafik_cols].copy()
+                    akw_grafik.to_excel(writer, sheet_name="AKW_Grafik", index=False)
+                    writer.sheets["AKW_Grafik"].column_dimensions["A"].width = 20
 
             (pumped_wide if not pumped_wide.empty
              else pd.DataFrame({"Hinweis": ["Keine Pumpspeicher-Daten erhalten - mit --raw pruefen"]})
@@ -458,7 +403,22 @@ def main():
             if not pumped_wide.empty:
                 writer.sheets["Pumpspeicher"].column_dimensions["A"].width = 20
 
-        # Pumpspeicher: Box-Whisker-Diagramm via Injektor (sheet_index=2)
+        # Box-Whisker-Diagramme via Injektor
+        # sheet_index entspricht der Reihenfolge der Sheets:
+        # 1=AKW, 2=AKW_Grafik, 3=Pumpspeicher
+        if not akw_grafik.empty and len(akw_grafik.columns) >= 3:
+            datum_von = akw_grafik["timestamp"].dropna().min().strftime("%d.%m.%Y")
+            datum_bis = akw_grafik["timestamp"].dropna().max().strftime("%d.%m.%Y")
+            inject_box_whisker_chart(
+                args.out,
+                sheet_name="AKW_Grafik",
+                n_data_rows=len(akw_grafik),
+                chart_title=f"AKW Schweiz ({datum_von} – {datum_bis}): Total Nuklear vs. Leibstadt (MW)",
+                series1_name="Total_Nuklear_A75_MW",
+                series2_name="Leibstadt",
+                sheet_index=2,
+            )
+
         if not pumped_wide.empty:
             datum_von = pumped_wide["timestamp"].min().strftime("%d.%m.%Y")
             datum_bis = pumped_wide["timestamp"].max().strftime("%d.%m.%Y")
@@ -469,7 +429,7 @@ def main():
                 chart_title=f"Pumpspeicher Schweiz ({datum_von} – {datum_bis}): Turbiniert vs. Hochgepumpt (MW)",
                 series1_name="Turbiniert_MW",
                 series2_name="Hochgepumpt_MW",
-                sheet_index=2,
+                sheet_index=3,
             )
 
         print(f"Fertig: {args.out}")
