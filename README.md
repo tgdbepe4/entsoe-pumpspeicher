@@ -12,11 +12,33 @@ A formal inquiry was sent to **Swissgrid** and **ElCom** (Swiss electricity regu
 
 | File | Description |
 |---|---|
-| `akw_leistung_ch_v5.py` | Swiss nuclear plants per block (Beznau 1/2, Gösgen, Leibstadt) + pumped storage CH. Includes derived Gösgen estimate via Total_Nuclear_A75 − other blocks. |
-| `ch_pumpspeicher_v4.py` | Pumped storage Switzerland: Turbinated_MW + Pumped_MW (pumped column always empty – CH doesn't report) |
-| `at_pumpspeicher_v4.py` | Pumped storage Austria: Turbinated_MW + Pumped_MW (both fully reported, 15 min resolution) |
-| `de_pumpspeicher_v4.py` | Pumped storage Germany: Turbinated_MW + Pumped_MW (both reported, multiple TSO zones aggregated) |
+| `akw_leistung_ch_v5.py` | Swiss nuclear plants per block (Beznau 1/2, Gösgen, Leibstadt) + pumped storage CH. Includes derived Gösgen estimate via Total_Nuclear_A75 − other blocks. Exports 3 Excel sheets: AKW (raw data), AKW_Grafik (Box-Whisker chart: Total_Nuklear vs. Leibstadt), Pumpspeicher (Box-Whisker chart: Turbiniert vs. Hochgepumpt). |
+| `ch_pumpspeicher_v4.py` | Pumped storage Switzerland: Turbiniert_MW + Hochgepumpt_MW (pumped column always empty – CH doesn't report) |
+| `at_pumpspeicher_v4.py` | Pumped storage Austria: Turbiniert_MW + Hochgepumpt_MW (both fully reported, 15 min resolution) |
+| `de_pumpspeicher_v4.py` | Pumped storage Germany: Turbiniert_MW + Hochgepumpt_MW (both reported, multiple TSO zones aggregated) |
 | `boxwhisker_injector.py` | Helper module: injects a Box-Whisker chart (chartEx format) into an xlsx file post-generation, since openpyxl doesn't support this chart type natively |
+
+## Shell Wrappers
+
+To avoid having to manually activate the virtual environment before each run, use the shell wrappers:
+
+```bash
+# Make executable once after first download
+chmod +x run_akw.sh run_at_pumpspeicher.sh run_ch_pumpspeicher.sh run_de_pumpspeicher.sh
+
+# Then simply run (no source venv/bin/activate needed)
+./run_akw.sh --week
+./run_at_pumpspeicher.sh --week
+./run_ch_pumpspeicher.sh --week
+./run_de_pumpspeicher.sh --week
+```
+
+| Wrapper | Calls |
+|---|---|
+| `run_akw.sh` | `akw_leistung_ch_v5.py` |
+| `run_ch_pumpspeicher.sh` | `ch_pumpspeicher_v4.py` |
+| `run_at_pumpspeicher.sh` | `at_pumpspeicher_v4.py` |
+| `run_de_pumpspeicher.sh` | `de_pumpspeicher_v4.py` |
 
 ## Installation
 
@@ -45,42 +67,28 @@ ENTSOE_TOKEN=your-token-here
 
 The scripts read the token automatically via `python-dotenv` — no manual export or environment variable setup needed.
 
-### Why `.env` instead of hardcoding?
-
-The token is a personal credential. Storing it in `.env` keeps it:
-- **Local only** — never accidentally pushed to GitHub
-- **Easy to update** — change it in one place, all scripts pick it up
-- **Shareable code** — others can clone the repo and add their own token without modifying the scripts
-
 ## Usage
 
 ```bash
-# Activate virtual environment first
-source venv/bin/activate
-
 # Live snapshot (current values)
-python3 at_pumpspeicher_v4.py
+./run_akw.sh
 
-# Weekly export as Excel with Box-Whisker chart
-python3 at_pumpspeicher_v4.py --week
-python3 ch_pumpspeicher_v4.py --week
-python3 de_pumpspeicher_v4.py --week
+# Weekly export as Excel with Box-Whisker charts
+./run_akw.sh --week
+./run_at_pumpspeicher.sh --week
 
 # Custom time range (e.g. 14 days)
-python3 at_pumpspeicher_v4.py --week --days 14
-
-# Custom output filename
-python3 at_pumpspeicher_v4.py --week --out my_output.xlsx
+./run_at_pumpspeicher.sh --week --days 14
 
 # Debug: show raw XML response
-python3 at_pumpspeicher_v4.py --raw
+./run_at_pumpspeicher.sh --raw
 ```
 
 ## Key Findings
 
 ### Pumped Storage Comparison
 
-| Country | Turbinated_MW | Pumped_MW | Resolution | Completeness |
+| Country | Turbiniert_MW | Hochgepumpt_MW | Resolution | Completeness |
 |---|---|---|---|---|
 | Switzerland (CH) | ✅ available | ❌ not reported | 1 hour | Incomplete |
 | Austria (AT) | ✅ available | ✅ available | 15 minutes | Nearly complete |
@@ -96,30 +104,21 @@ python3 at_pumpspeicher_v4.py --raw
 | Leibstadt | ~1,233 MW | A73 data complete and reliable |
 
 **Gösgen derivation:** `Gösgen_derived = Total_Nuclear_A75 − Beznau1 − Beznau2 − Leibstadt`
-Results in NaN (rather than a potentially incorrect value) when any other block is missing for a given timestamp.
 
 ### Notable Events (June 2026)
 
-- **Beznau heat shutdown:** Beznau 1 & 2 were fully shut down on 26 June 2026 because the Aare river temperature exceeded 25°C (cooling water limit) during a heat wave — visible in the ENTSO-E data immediately, but not reflected in electricitymaps.com for several days.
-- **Gösgen restart:** After a 10-month outage (safety upgrades + annual revision), Gösgen received restart clearance from ENSI on 26 June 2026.
+- **Beznau heat shutdown:** Beznau 1 & 2 were fully shut down on 26 June 2026 because the Aare river temperature exceeded 25°C — visible in ENTSO-E data immediately, but not in electricitymaps.com for several days.
+- **Gösgen restart:** After a 10-month outage, Gösgen received restart clearance from ENSI on 26 June 2026.
 
 ## Technical Notes
 
 ### boxwhisker_injector.py
 
-Excel's Box-Whisker chart type (`chartEx`) is not supported by openpyxl. The injector module works around this by:
-1. Writing the data normally with pandas/openpyxl
-2. Re-opening the `.xlsx` file as a ZIP archive
-3. Injecting the `chartEx` XML parts (chart definition, style, colors, relationships) directly
-
-This approach is based on a reference file created manually in Excel. Known limitations:
-- Axis titles cannot be set programmatically (undocumented schema restriction)
-- Compatibility with older Excel versions, Google Sheets or LibreOffice is not guaranteed
-- The module must be in the same directory as the calling scripts
+Excel's Box-Whisker chart type (`chartEx`) is not supported by openpyxl. The injector module works around this by re-opening the `.xlsx` file as a ZIP archive and injecting the `chartEx` XML parts directly. Supports multiple charts per workbook via `sheet_index` parameter.
 
 ### Rate Limiting
 
-The scripts use 3-second pauses between daily requests and 5-second pauses between query blocks to avoid hitting ENTSO-E rate limits. A 401 HTTP error (rather than the expected 429) was observed when making ~21 rapid consecutive requests — hence the conservative pacing.
+The scripts use 3-second pauses between daily requests and 5-second pauses between query blocks to avoid ENTSO-E rate limits.
 
 ## License
 
