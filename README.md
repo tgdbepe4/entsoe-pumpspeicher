@@ -16,6 +16,8 @@ A formal inquiry was sent to **Swissgrid** and **ElCom** (Swiss electricity regu
 | `ch_pumpspeicher_v4.py` | Pumped storage Switzerland: Turbiniert_MW + Hochgepumpt_MW (pumped column always empty – CH doesn't report) |
 | `at_pumpspeicher_v4.py` | Pumped storage Austria: Turbiniert_MW + Hochgepumpt_MW (both fully reported, 15 min resolution) |
 | `de_pumpspeicher_v4.py` | Pumped storage Germany: Turbiniert_MW + Hochgepumpt_MW (both reported, multiple TSO zones aggregated) |
+| `fr_pumpspeicher_v1.py` | Pumped storage France: Turbiniert_MW + Hochgepumpt_MW (EU member) |
+| `es_pumpspeicher_v1.py` | Pumped storage Spain: Turbiniert_MW + Hochgepumpt_MW (EU member, REE as TSO) |
 | `boxwhisker_injector.py` | Helper module: injects a Box-Whisker chart (chartEx format) into an xlsx file post-generation, since openpyxl doesn't support this chart type natively |
 
 ## Shell Wrappers
@@ -39,6 +41,8 @@ chmod +x run_akw.sh run_at_pumpspeicher.sh run_ch_pumpspeicher.sh run_de_pumpspe
 | `run_ch_pumpspeicher.sh` | `ch_pumpspeicher_v4.py` |
 | `run_at_pumpspeicher.sh` | `at_pumpspeicher_v4.py` |
 | `run_de_pumpspeicher.sh` | `de_pumpspeicher_v4.py` |
+| `run_fr_pumpspeicher.sh` | `fr_pumpspeicher_v1.py` |
+| `run_es_pumpspeicher.sh` | `es_pumpspeicher_v1.py` |
 
 ## Installation
 
@@ -91,6 +95,8 @@ The scripts read the token automatically via `python-dotenv` — no manual expor
 | Country | Turbiniert_MW | Hochgepumpt_MW | Resolution | Completeness |
 |---|---|---|---|---|
 | Switzerland (CH) | ✅ available | ❌ not reported | 1 hour | Incomplete |
+| France (FR) | ✅ available | ✅ expected | 15 minutes | EU member – to be verified |
+| Spain (ES) | ✅ available | ✅ expected | 15 minutes | EU member – to be verified |
 | Austria (AT) | ✅ available | ✅ available | 15 minutes | Nearly complete |
 | Germany (DE) | ✅ available | ✅ available | 15 minutes | Nearly complete |
 
