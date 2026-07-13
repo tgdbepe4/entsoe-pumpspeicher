@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Österreich – Pumpspeicher: Erzeugung UND Pumpverbrauch, via ENTSO-E
+Frankreich – Pumpspeicher: Erzeugung UND Pumpverbrauch, via ENTSO-E
 ================================================================================
 Version: v1 - Frankreich-Variante basierend auf at_pumpspeicher_v4.py, kein manuelles Verbreitern mehr noetig
 
@@ -11,7 +11,7 @@ unbeantwortet blieb: Wie viel Strom wird zum Hochpumpen verbraucht
 
 WARUM FRANKREICH: Als EU-Mitglied unterliegt Frankreich der ENTSO-E Transparency
 Platform (Hirth/Mühlenpfordt/Bulkeley 2018, siehe Chat-Diskussion) stellt
-fest, dass die Datenabdeckung fuer Oesterreich nahezu vollstaendig sein sollte
+fest, dass die Datenabdeckung fuer Frankreich nahezu vollstaendig sein sollte
 (im Gegensatz zur Schweiz, die als Nicht-EU-Land nicht unter die
 verbindliche EU-Transparenzverordnung 543/2013 faellt). Erwartung: anders
 als bei CH sollte hier tatsaechlich eine "out"-Zeitreihe (Pumpverbrauch)
@@ -338,7 +338,7 @@ def main():
     client = EntsoeRawClient(api_key=token)
 
     if args.week:
-        print(f"Hole {args.days} Tage Daten für Österreich (tagesweise, dauert evtl. etwas)...")
+        print(f"Hole {args.days} Tage Daten für Frankreich (tagesweise, dauert evtl. etwas)...")
 
         pumped_df = fetch_days(
             lambda s, e: client.query_generation(
