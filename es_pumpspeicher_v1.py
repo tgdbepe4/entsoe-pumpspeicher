@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 """
-Österreich – Pumpspeicher: Erzeugung UND Pumpverbrauch, via ENTSO-E
+Spanien – Pumpspeicher: Erzeugung UND Pumpverbrauch, via ENTSO-E
 ================================================================================
 Version: v1 - Spanien-Variante basierend auf at_pumpspeicher_v4.py, kein manuelles Verbreitern mehr noetig
 
-Schwester-Skript zu akw_leistung_ch.py, aber für Österreich (AT) statt
+Schwester-Skript zu akw_leistung_ch.py, für Spanien (ES) statt
 Schweiz (CH) - und mit Fokus auf genau die Frage, die bei der Schweiz
 unbeantwortet blieb: Wie viel Strom wird zum Hochpumpen verbraucht
 (direction "out"), nicht nur wie viel beim Turbinieren erzeugt
@@ -12,7 +12,7 @@ unbeantwortet blieb: Wie viel Strom wird zum Hochpumpen verbraucht
 
 WARUM SPANIEN: Als EU-Mitglied unterliegt Spanien der ENTSO-E Transparency
 Platform (Hirth/Mühlenpfordt/Bulkeley 2018, siehe Chat-Diskussion) stellt
-fest, dass die Datenabdeckung fuer Oesterreich nahezu vollstaendig sein sollte
+fest, dass die Datenabdeckung fuer Spanien nahezu vollstaendig sein sollte
 (im Gegensatz zur Schweiz, die als Nicht-EU-Land nicht unter die
 verbindliche EU-Transparenzverordnung 543/2013 faellt). Erwartung: anders
 als bei CH sollte hier tatsaechlich eine "out"-Zeitreihe (Pumpverbrauch)
@@ -339,7 +339,7 @@ def main():
     client = EntsoeRawClient(api_key=token)
 
     if args.week:
-        print(f"Hole {args.days} Tage Daten für Österreich (tagesweise, dauert evtl. etwas)...")
+        print(f"Hole {args.days} Tage Daten für Spanien (tagesweise, dauert evtl. etwas)...")
 
         pumped_df = fetch_days(
             lambda s, e: client.query_generation(
